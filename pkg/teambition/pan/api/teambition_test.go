@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,10 +14,13 @@ var fs Fs
 var err error
 
 func setup(t *testing.T) context.Context {
-	err := godotenv.Load("../../../../.env")
+	cookie := ""
+	cb, err := ioutil.ReadFile("../../../../.cookie")
+	if err == nil {
+		cookie = string(cb)
+	}
 	config := &Config{
-		TeambitionSessionId:    os.Getenv("TEAMBITION_SESSIONID"),
-		TeambitionSessionIdSig: os.Getenv("TEAMBITION_SESSIONID_SIG"),
+		Cookie: cookie,
 	}
 
 	ctx := context.Background()
@@ -29,9 +31,9 @@ func setup(t *testing.T) context.Context {
 
 func TestList(t *testing.T) {
 	ctx := setup(t)
-	names, err := fs.List(ctx, "/media")
+	names, err := fs.List(ctx, "/long")
 	require.NoError(t, err)
-	println(fmt.Sprintf("%v", names))
+	println(fmt.Sprintf("size: %v, %v", len(names), names))
 }
 
 func TestOpen(t *testing.T) {
@@ -49,13 +51,15 @@ func TestOpen(t *testing.T) {
 
 func TestCreateFolder(t *testing.T) {
 	ctx := setup(t)
-	err := fs.CreateFolder(ctx, "/", "test2")
+	err := fs.CreateFolder(ctx, "/")
+	require.NoError(t, err)
+	err = fs.CreateFolder(ctx, "/test3/test4")
 	require.NoError(t, err)
 }
 
 func TestRemove(t *testing.T) {
 	ctx := setup(t)
-	err := fs.Remove(ctx, "/test2")
+	err := fs.Remove(ctx, "/rs.txt")
 	require.NoError(t, err)
 }
 
@@ -65,7 +69,7 @@ func TestCreateFile(t *testing.T) {
 	require.NoError(t, err)
 	info, err := fd.Stat()
 	require.NoError(t, err)
-	err = fs.CreateFile(ctx, "/media", "1.mp3", info.Size(), fd)
+	err = fs.CreateFile(ctx, "/media/1.mp3", info.Size(), fd, true)
 	require.NoError(t, err)
 	defer fd.Close()
 }
