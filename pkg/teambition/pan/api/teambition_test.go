@@ -11,7 +11,6 @@ import (
 )
 
 var fs Fs
-var err error
 
 func setup(t *testing.T) context.Context {
 	cookie := ""
@@ -43,8 +42,8 @@ func TestOpen(t *testing.T) {
 	data, err := ioutil.ReadAll(fd)
 	require.NoError(t, err)
 	fo, err := os.Create("output.mp3")
-	fo.Write(data)
 	require.NoError(t, err)
+	fo.Write(data)
 	require.NoError(t, fd.Close())
 	require.NoError(t, fo.Close())
 }
