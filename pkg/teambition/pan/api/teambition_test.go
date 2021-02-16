@@ -37,11 +37,11 @@ func TestList(t *testing.T) {
 
 func TestOpen(t *testing.T) {
 	ctx := setup(t)
-	fd, err := fs.Open(ctx, "/media/music/1.mp3")
+	fd, err := fs.Open(ctx, "/media/2.jpg", map[string]string{})
 	require.NoError(t, err)
 	data, err := ioutil.ReadAll(fd)
 	require.NoError(t, err)
-	fo, err := os.Create("output.mp3")
+	fo, err := os.Create("output.jpg")
 	require.NoError(t, err)
 	fo.Write(data)
 	require.NoError(t, fd.Close())
@@ -58,7 +58,9 @@ func TestCreateFolder(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	ctx := setup(t)
-	err := fs.Remove(ctx, "/rs.txt")
+	err := fs.Remove(ctx, "/test3/test4")
+	require.NoError(t, err)
+	err = fs.Remove(ctx, "/test3")
 	require.NoError(t, err)
 }
 

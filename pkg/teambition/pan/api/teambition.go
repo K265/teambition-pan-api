@@ -20,7 +20,7 @@ type Fs interface {
 	CreateFolder(ctx context.Context, path string) error
 	GetNode(ctx context.Context, path string, kind string) (*Node, error)
 	List(ctx context.Context, path string) (names []Node, err error)
-	Open(ctx context.Context, path string) (io.ReadCloser, error)
+	Open(ctx context.Context, path string, headers map[string]string) (io.ReadCloser, error)
 	Remove(ctx context.Context, path string) error
 	CreateFile(ctx context.Context, path string, size int64, in io.Reader, overwrite bool) error
 	Rename(ctx context.Context, path string, newName string) error
@@ -52,14 +52,16 @@ func (teambition *Teambition) String() string {
 	return fmt.Sprintf("Teambition{orgId: %s, memberId: %s}", teambition.orgId, teambition.memberId)
 }
 
-func (teambition *Teambition) request(ctx context.Context, method, url string, body io.Reader) (*http.Response, error) {
+func (teambition *Teambition) request(ctx context.Context, method, url string, headers map[string]string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Cookie", teambition.config.Cookie)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
 	res, err2 := teambition.httpClient.Do(req)
 	if err2 != nil {
 		return nil, errors.WithStack(err2)
@@ -68,20 +70,27 @@ func (teambition *Teambition) request(ctx context.Context, method, url string, b
 }
 
 func (teambition *Teambition) jsonRequest(ctx context.Context, method, url string, body io.Reader, model interface{}) error {
-	res, err := teambition.request(ctx, method, url, body)
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"Cookie":       teambition.config.Cookie,
+	}
+	res, err := teambition.request(ctx, method, url, headers, body)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	defer res.Body.Close()
 
-	b, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return errors.Wrap(err, `error reading res.Body`)
+	if model != nil {
+		b, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return errors.Wrap(err, `error reading res.Body`)
+		}
+		err = json.Unmarshal(b, &model)
+		if err != nil {
+			return errors.Wrapf(err, "error parsing model, response: %s", string(b))
+		}
 	}
-	err = json.Unmarshal(b, &model)
-	if err != nil {
-		return errors.Wrapf(err, "error parsing model, response: %s", string(b))
-	}
+
 	return nil
 }
 
@@ -223,7 +232,7 @@ func (teambition *Teambition) List(ctx context.Context, path string) ([]Node, er
 	return nodes.Data, nil
 }
 
-func (teambition *Teambition) Open(ctx context.Context, path string) (io.ReadCloser, error) {
+func (teambition *Teambition) Open(ctx context.Context, path string, headers map[string]string) (io.ReadCloser, error) {
 	node, err := teambition.GetNode(ctx, path, FileKind)
 	if err != nil {
 		return nil, findNodeError(err, path)
@@ -234,7 +243,7 @@ func (teambition *Teambition) Open(ctx context.Context, path string) (io.ReadClo
 		return nil, errors.Errorf(`error getting downloadUrl of "%s"`, node)
 	}
 
-	res, err := teambition.request(ctx, "GET", downloadUrl, nil)
+	res, err := teambition.request(ctx, "GET", downloadUrl, headers, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, `error downloading "%s"`, downloadUrl)
 	}
@@ -269,11 +278,10 @@ func (teambition *Teambition) createFolderInternal(ctx context.Context, parent s
 	if err != nil {
 		return marshalError(err)
 	}
-	res, err := teambition.request(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/folder", bytes.NewBuffer(b))
+	err = teambition.jsonRequest(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/folder", bytes.NewBuffer(b), nil)
 	if err != nil {
 		return errors.Wrap(err, "error posting create folder request")
 	}
-	defer res.Body.Close()
 	return nil
 }
 
@@ -409,11 +417,10 @@ func (teambition *Teambition) CreateFile(ctx context.Context, path string, size 
 		if err != nil {
 			return marshalError(err)
 		}
-		res, err := teambition.request(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/complete", bytes.NewBuffer(b))
+		err = teambition.jsonRequest(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/complete", bytes.NewBuffer(b), nil)
 		if err != nil {
 			return errors.Wrap(err, `error posting upload complete request`)
 		}
-		defer res.Body.Close()
 	}
 	return nil
 }
@@ -442,11 +449,10 @@ func (teambition *Teambition) Remove(ctx context.Context, path string) error {
 	if err != nil {
 		return marshalError(err)
 	}
-	res, err := teambition.request(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/archive", bytes.NewBuffer(b))
+	err = teambition.jsonRequest(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/archive", bytes.NewBuffer(b), nil)
 	if err != nil {
 		return errors.Wrap(err, `error posting remove request`)
 	}
-	defer res.Body.Close()
 	return nil
 }
 
@@ -469,11 +475,10 @@ func (teambition *Teambition) Rename(ctx context.Context, path string, newName s
 	if err != nil {
 		return marshalError(err)
 	}
-	res, err := teambition.request(ctx, "PUT", fmt.Sprintf("https://pan.teambition.com/pan/api/nodes/%s", node.NodeId), bytes.NewBuffer(b))
+	err = teambition.jsonRequest(ctx, "PUT", fmt.Sprintf("https://pan.teambition.com/pan/api/nodes/%s", node.NodeId), bytes.NewBuffer(b), nil)
 	if err != nil {
 		return errors.Wrap(err, `error posting rename request`)
 	}
-	defer res.Body.Close()
 	return nil
 }
 
@@ -506,10 +511,9 @@ func (teambition *Teambition) Move(ctx context.Context, oldPath string, newPath 
 	if err != nil {
 		return marshalError(err)
 	}
-	res, err := teambition.request(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/move", bytes.NewBuffer(b))
+	err = teambition.jsonRequest(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/move", bytes.NewBuffer(b), nil)
 	if err != nil {
 		return errors.Wrap(err, `error posting move request`)
 	}
-	defer res.Body.Close()
 	return nil
 }
