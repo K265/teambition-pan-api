@@ -37,9 +37,9 @@ func TestList(t *testing.T) {
 
 func TestCreateFolder(t *testing.T) {
 	ctx := setup(t)
-	err := fs.CreateFolder(ctx, "/")
+	_, err := fs.CreateFolder(ctx, "/")
 	require.NoError(t, err)
-	err = fs.CreateFolder(ctx, "/test3/test4")
+	_, err = fs.CreateFolder(ctx, "/test3/test4")
 	require.NoError(t, err)
 }
 
@@ -92,7 +92,15 @@ func TestCreateFile(t *testing.T) {
 	require.NoError(t, err)
 	info, err := fd.Stat()
 	require.NoError(t, err)
-	err = fs.CreateFile(ctx, "/media/1.mp3", info.Size(), fd, true)
+	_, err = fs.CreateFile(ctx, "/media/1.mp3", info.Size(), fd, true)
 	require.NoError(t, err)
 	defer fd.Close()
+}
+
+func TestIntegration1(t *testing.T) {
+	ctx := setup(t)
+	node, err := fs.CreateFolder(ctx, "/test3")
+	require.NoError(t, err)
+	err = fs.Remove(ctx, node)
+	require.NoError(t, err)
 }
