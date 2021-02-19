@@ -272,12 +272,12 @@ func (teambition *Teambition) createFolderInternal(ctx context.Context, parent s
 	if err != nil {
 		return nil, marshalError(err)
 	}
-	var createdNode Node
-	err = teambition.jsonRequest(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/folder", bytes.NewBuffer(b), createdNode)
+	var createdNode [1]Node
+	err = teambition.jsonRequest(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/folder", bytes.NewBuffer(b), &createdNode)
 	if err != nil {
 		return nil, errors.Wrap(err, "error posting create folder request")
 	}
-	return &createdNode, nil
+	return &createdNode[0], nil
 }
 
 func (teambition *Teambition) CreateFolder(ctx context.Context, path string) (*Node, error) {
