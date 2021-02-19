@@ -1,6 +1,8 @@
 # teambition-pan-api
 
-This is a Go language package to manage your Teambition files
+This is a Go language package to manage your Teambition files.
+
+This is also the basis for <https://github.com/K265/rclone/tree/teambition-backend>
 
 ## Usage
 
