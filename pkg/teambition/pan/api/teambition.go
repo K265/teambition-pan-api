@@ -38,7 +38,7 @@ func (config Config) String() string {
 }
 
 type Teambition struct {
-	folderCache Cache
+	folderCache FolderCache
 	config      Config
 	orgId       string
 	memberId    string
@@ -333,6 +333,9 @@ func (teambition *Teambition) Rename(ctx context.Context, node *Node, newName st
 		return marshalError(err)
 	}
 	err = teambition.jsonRequest(ctx, "PUT", fmt.Sprintf("https://pan.teambition.com/pan/api/nodes/%s", node.NodeId), bytes.NewBuffer(b), nil)
+	if node.Kind == FolderKind {
+		teambition.folderCache.Clear()
+	}
 	if err != nil {
 		return errors.Wrap(err, `error posting rename request`)
 	}
@@ -364,6 +367,9 @@ func (teambition *Teambition) Move(ctx context.Context, node *Node, parent *Node
 		return marshalError(err)
 	}
 	err = teambition.jsonRequest(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/move", bytes.NewBuffer(b), nil)
+	if node.Kind == FolderKind {
+		teambition.folderCache.Clear()
+	}
 	if err != nil {
 		return errors.Wrap(err, `error posting move request`)
 	}
@@ -384,6 +390,9 @@ func (teambition *Teambition) Remove(ctx context.Context, node *Node) error {
 		return marshalError(err)
 	}
 	err = teambition.jsonRequest(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/archive", bytes.NewBuffer(b), nil)
+	if node.Kind == FolderKind {
+		teambition.folderCache.Clear()
+	}
 	if err != nil {
 		return errors.Wrap(err, `error posting remove request`)
 	}
