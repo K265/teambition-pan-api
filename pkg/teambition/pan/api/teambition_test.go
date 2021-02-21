@@ -119,7 +119,9 @@ func TestCopy(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	ctx := setup(t)
-	node, err := fs.Get(ctx, "/2.jpg", FileKind)
+	node, err := fs.Get(ctx, "/media/2.jpg", FileKind)
 	require.NoError(t, err)
 	fmt.Println(node)
+	node, err = fs.Get(ctx, "/media/not-exist.jpg", FileKind)
+	require.NoError(t, err)
 }

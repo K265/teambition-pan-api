@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	
-	errors "github.com/pkg/errors"
+
+	"github.com/pkg/errors"
 )
 
 var BaseUrl = "https://pan.teambition.com"
@@ -211,17 +211,17 @@ func (teambition *Teambition) Get(ctx context.Context, path string, kind string)
 		return teambition.findNameNode(ctx, &teambition.rootNode, name, kind)
 	}
 
-	nodeId, ok := teambition.folderCache.Get(parent)
+	node, ok := teambition.folderCache.Get(parent)
 	if !ok {
-		node, err := teambition.Get(ctx, parent, FolderKind)
+		_node, err := teambition.Get(ctx, parent, FolderKind)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
-		nodeId = node.NodeId
-		teambition.folderCache.Put(parent, nodeId)
+		node = _node
+		teambition.folderCache.Put(parent, node)
 	}
 
-	return teambition.findNameNode(ctx, &Node{NodeId: nodeId}, name, kind)
+	return teambition.findNameNode(ctx, node, name, kind)
 }
 
 func findNodeError(err error, path string) error {
