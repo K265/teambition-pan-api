@@ -55,7 +55,9 @@ func TestMove(t *testing.T) {
 	ctx := setup(t)
 	node, err := fs.Get(ctx, "/test3/test5", FolderKind)
 	require.NoError(t, err)
-	err = fs.Move(ctx, node, "/")
+	newNode, err := fs.Get(ctx, "/", FolderKind)
+	require.NoError(t, err)
+	err = fs.Move(ctx, node, newNode)
 	require.NoError(t, err)
 }
 
@@ -103,4 +105,21 @@ func TestIntegration1(t *testing.T) {
 	require.NoError(t, err)
 	err = fs.Remove(ctx, node)
 	require.NoError(t, err)
+}
+
+func TestCopy(t *testing.T) {
+	ctx := setup(t)
+	node, err := fs.Get(ctx, "/media/2.jpg", FileKind)
+	require.NoError(t, err)
+	parent, err := fs.Get(ctx, "/", FolderKind)
+	require.NoError(t, err)
+	err = fs.Copy(ctx, node, parent)
+	require.NoError(t, err)
+}
+
+func TestGet(t *testing.T) {
+	ctx := setup(t)
+	node, err := fs.Get(ctx, "/2.jpg", FileKind)
+	require.NoError(t, err)
+	fmt.Println(node)
 }

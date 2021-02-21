@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	errors "github.com/pkg/errors"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
+	
+	errors "github.com/pkg/errors"
 )
 
 var BaseUrl = "https://pan.teambition.com"
@@ -21,10 +22,11 @@ type Fs interface {
 	List(ctx context.Context, path string) ([]Node, error)
 	CreateFolder(ctx context.Context, path string) (*Node, error)
 	Rename(ctx context.Context, node *Node, newName string) error
-	Move(ctx context.Context, node *Node, newPath string) error
+	Move(ctx context.Context, node *Node, parent *Node) error
 	Remove(ctx context.Context, node *Node) error
 	Open(ctx context.Context, node *Node, headers map[string]string) (io.ReadCloser, error)
 	CreateFile(ctx context.Context, path string, size int64, in io.Reader, overwrite bool) (*Node, error)
+	Copy(ctx context.Context, node *Node, parent *Node) error
 }
 
 type Config struct {
@@ -179,7 +181,7 @@ func (teambition *Teambition) findNameNode(ctx context.Context, node *Node, name
 		}
 	}
 
-	return nil, errors.Errorf(`can't find "%s" under "%s"`, name, node)
+	return nil, errors.Errorf(`can't find "%s", kind: "%s" under "%s"`, name, kind, node)
 }
 
 // path must start with "/" and must not end with "/"
@@ -337,14 +339,13 @@ func (teambition *Teambition) Rename(ctx context.Context, node *Node, newName st
 	return nil
 }
 
-func (teambition *Teambition) Move(ctx context.Context, node *Node, newPath string) error {
+func (teambition *Teambition) Move(ctx context.Context, node *Node, parent *Node) error {
 	if err := teambition.checkRoot(node); err != nil {
 		return err
 	}
 
-	newNode, err := teambition.Get(ctx, newPath, AnyKind)
-	if err != nil {
-		return findNodeError(err, newPath)
+	if parent == nil {
+		return errors.New("parent node is empty")
 	}
 	body := map[string]interface{}{
 		"orgId":     teambition.orgId,
@@ -356,7 +357,7 @@ func (teambition *Teambition) Move(ctx context.Context, node *Node, newPath stri
 				"ccpFileId": node.NodeId,
 			},
 		},
-		"parentId": newNode.NodeId,
+		"parentId": parent.NodeId,
 	}
 	b, err := json.Marshal(body)
 	if err != nil {
@@ -527,4 +528,34 @@ func (teambition *Teambition) CreateFile(ctx context.Context, path string, size 
 		}
 	}
 	return &createdNode, nil
+}
+
+func (teambition *Teambition) Copy(ctx context.Context, node *Node, parent *Node) error {
+	if err := teambition.checkRoot(node); err != nil {
+		return err
+	}
+
+	if parent == nil {
+		return errors.New("parent node is empty")
+	}
+	body := map[string]interface{}{
+		"orgId":   teambition.orgId,
+		"driveId": teambition.driveId,
+		"ids": []map[string]string{
+			{
+				"id":        node.NodeId,
+				"ccpFileId": node.NodeId,
+			},
+		},
+		"parentId": parent.NodeId,
+	}
+	b, err := json.Marshal(body)
+	if err != nil {
+		return marshalError(err)
+	}
+	err = teambition.jsonRequest(ctx, "POST", "https://pan.teambition.com/pan/api/nodes/copy", bytes.NewBuffer(b), nil)
+	if err != nil {
+		return errors.Wrap(err, `error posting copy request`)
+	}
+	return nil
 }
