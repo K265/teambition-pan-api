@@ -30,7 +30,7 @@ func setup(t *testing.T) context.Context {
 
 func TestList(t *testing.T) {
 	ctx := setup(t)
-	names, err := fs.List(ctx, "/long")
+	names, err := fs.List(ctx, "/media")
 	require.NoError(t, err)
 	println(fmt.Sprintf("size: %v, %v", len(names), names))
 }
